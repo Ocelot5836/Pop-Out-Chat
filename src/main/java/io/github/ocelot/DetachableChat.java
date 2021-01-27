@@ -1,6 +1,7 @@
 package io.github.ocelot;
 
 import io.github.ocelot.client.ChatWindow;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -32,9 +33,12 @@ public class DetachableChat
     {
     }
 
+    // TODO debug remove
     @SubscribeEvent
     public void onEvent(GuiScreenEvent.InitGuiEvent event)
     {
+        if (Minecraft.getInstance().player == null)
+            return;
         ChatWindow.create();
     }
 }
