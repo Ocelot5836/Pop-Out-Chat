@@ -198,7 +198,6 @@ public final class ChatWindow
                 IntBuffer x = memoryStack.callocInt(1);
                 IntBuffer y = memoryStack.callocInt(1);
                 glfwGetWindowPos(mainWindow.getHandle(), x, y);
-                System.out.println(x.get(0) + ", " + y.get(0));
                 glfwSetWindowPos(handle, (int) (x.get() + (mainWindow.getWidth() - windowWidth) / 2.0), (int) (y.get() + (mainWindow.getHeight() - windowHeight) / 2.0));
             }
         }
