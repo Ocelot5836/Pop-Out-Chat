@@ -191,12 +191,16 @@ public final class ChatWindow
         setWindowIcon();
 
         /* Set position to center of main window */
-        try (MemoryStack memoryStack = MemoryStack.stackPush())
+        if (!mainWindow.isFullscreen())
         {
-            IntBuffer x = memoryStack.callocInt(1);
-            IntBuffer y = memoryStack.callocInt(1);
-            glfwGetWindowPos(mainWindow.getHandle(), x, y);
-            glfwSetWindowPos(handle, (int) (x.get() + (mainWindow.getWidth() - windowWidth) / 2.0), (int) (y.get() + (mainWindow.getHeight() - windowHeight) / 2.0));
+            try (MemoryStack memoryStack = MemoryStack.stackPush())
+            {
+                IntBuffer x = memoryStack.callocInt(1);
+                IntBuffer y = memoryStack.callocInt(1);
+                glfwGetWindowPos(mainWindow.getHandle(), x, y);
+                System.out.println(x.get(0) + ", " + y.get(0));
+                glfwSetWindowPos(handle, (int) (x.get() + (mainWindow.getWidth() - windowWidth) / 2.0), (int) (y.get() + (mainWindow.getHeight() - windowHeight) / 2.0));
+            }
         }
 
         closing = false;
