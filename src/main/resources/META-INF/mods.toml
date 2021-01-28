@@ -6,10 +6,9 @@ license = "All Rights Reserved"
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
+updateJSONURL = "https://raw.githubusercontent.com/Ocelot5836/storage/master/mods/popoutchat/update.json"
 authors = "Ocelot"
-description = '''
-Example Description
-'''
+description = "Adds the ability to pop Minecraft chat out with the click of a button. The chat becomes a separate window with complete support for vanilla chat features."
 
 [[dependencies.${modId}]]
 modId = "forge"

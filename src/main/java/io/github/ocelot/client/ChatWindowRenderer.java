@@ -4,18 +4,21 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.ocelot.DetachableChat;
+import io.github.ocelot.client.util.ScrollHandler;
+import net.minecraft.client.GameSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.client.gui.RenderComponentsUtil;
-import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.shader.FramebufferConstants;
 import net.minecraft.util.IReorderingProcessor;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,10 +35,12 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class ChatWindowRenderer
 {
     private static final List<IReorderingProcessor> RENDER_LINES = new LinkedList<>();
-    private static final ChatScreen CHAT_SCREEN = new ChatScreen("");
+    private static final Screen CHAT_SCREEN = new ChatBoxScreen();
+    private static final ScrollHandler SCROLL_HANDLER = new ScrollHandler(0, 0).setScrollSpeed(9);
     private static int fbo;
     private static int colorBuffer;
     private static int depthBuffer;
+    private static double lastChatLineSpacing;
 
     /**
      * Updates the size of the color and depth buffers.
@@ -51,8 +56,8 @@ public class ChatWindowRenderer
             depthBuffer = glGenRenderbuffers();
 
         GlStateManager.bindTexture(colorBuffer);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -63,6 +68,7 @@ public class ChatWindowRenderer
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
         CHAT_SCREEN.init(Minecraft.getInstance(), ChatWindow.getScaledWidth(), ChatWindow.getScaledHeight());
+        SCROLL_HANDLER.setVisibleHeight(ChatWindow.getScaledHeight() - 48);
     }
 
     /**
@@ -72,9 +78,9 @@ public class ChatWindowRenderer
     {
         if (fbo == 0)
             fbo = GlStateManager.genFramebuffers();
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+        GlStateManager.bindFramebuffer(FramebufferConstants.GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(FramebufferConstants.GL_FRAMEBUFFER, FramebufferConstants.GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+        glFramebufferRenderbuffer(FramebufferConstants.GL_FRAMEBUFFER, FramebufferConstants.GL_DEPTH_ATTACHMENT, FramebufferConstants.GL_RENDERBUFFER, depthBuffer);
         int i = GlStateManager.checkFramebufferStatus(FramebufferConstants.GL_FRAMEBUFFER);
         if (i != FramebufferConstants.GL_FRAMEBUFFER_COMPLETE)
         {
@@ -95,7 +101,7 @@ public class ChatWindowRenderer
      */
     public static void bind()
     {
-        GlStateManager.bindFramebuffer(GL_FRAMEBUFFER, fbo);
+        GlStateManager.bindFramebuffer(FramebufferConstants.GL_FRAMEBUFFER, fbo);
     }
 
     /**
@@ -104,6 +110,29 @@ public class ChatWindowRenderer
     public static void bindTexture()
     {
         glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    }
+
+    /**
+     * Syncs the render lines with the chat text.
+     */
+    public static void updateText()
+    {
+        Minecraft mc = Minecraft.getInstance();
+        RENDER_LINES.clear();
+
+        mc.ingameGUI.getChatGUI().chatLines.stream().flatMap(line ->
+        {
+            List<IReorderingProcessor> processors = RenderComponentsUtil.func_238505_a_(line.getLineString(), ChatWindow.getScaledWidth() - 4 * ChatWindow.getGuiScale(), Minecraft.getInstance().fontRenderer);
+            Collections.reverse(processors);
+            return processors.stream();
+        }).forEach(RENDER_LINES::add);
+
+        while (RENDER_LINES.size() > 100)
+        {
+            RENDER_LINES.remove(RENDER_LINES.size() - 1);
+        }
+
+        SCROLL_HANDLER.setHeight((int) (RENDER_LINES.size() * 9.0D * (mc.gameSettings.chatLineSpacing + 1.0D)) - 9);
     }
 
     /**
@@ -128,11 +157,23 @@ public class ChatWindowRenderer
         }
     }
 
-    @SubscribeEvent
-    public static void tick(TickEvent.ClientTickEvent event)
+    /**
+     * Updates the chat window state.
+     */
+    public static void tick()
     {
-        if (event.phase == TickEvent.Phase.START && colorBuffer != 0 && depthBuffer != 0)
+        if (colorBuffer != 0 && depthBuffer != 0)
+        {
+            GameSettings gameSettings = Minecraft.getInstance().gameSettings;
+            if (gameSettings.chatLineSpacing != lastChatLineSpacing)
+            {
+                SCROLL_HANDLER.setHeight((int) (RENDER_LINES.size() * 9.0D * (gameSettings.chatLineSpacing + 1.0D)) - 9);
+                lastChatLineSpacing = gameSettings.chatLineSpacing;
+            }
+
+            SCROLL_HANDLER.update();
             CHAT_SCREEN.tick();
+        }
     }
 
     /**
@@ -143,76 +184,117 @@ public class ChatWindowRenderer
      * @param scaledHeight The scaled height of the window
      * @param mouseX       The scaled x position of the mouse
      * @param mouseY       The scaled y position of the mouse
-     * @param focused      Whether or not the window is focused
+     * @param partialTicks The percentage from last update to this update
      */
-    public static void render(MatrixStack matrixStack, int scaledWidth, int scaledHeight, int mouseX, int mouseY, boolean focused)
+    @SuppressWarnings("deprecation")
+    public static void render(MatrixStack matrixStack, int scaledWidth, int scaledHeight, int mouseX, int mouseY, float partialTicks)
     {
         AbstractGui.fill(matrixStack, 0, 0, scaledWidth, scaledHeight, 0xFFC6C6C6);
+        RenderSystem.enableDepthTest();
         RenderSystem.pushMatrix();
-        RenderSystem.translatef(0, scaledHeight - 48, 0);
-        Minecraft.getInstance().ingameGUI.getChatGUI().func_238492_a_(matrixStack, Minecraft.getInstance().ingameGUI.getTicks());
+        RenderSystem.translatef(0, scaledHeight - 48, -10);
+
+        Minecraft mc = Minecraft.getInstance();
+        int height = scaledHeight - 48;
+        float scrollPos = Math.max(0, SCROLL_HANDLER.getInterpolatedScroll(partialTicks));
+        double d0 = Minecraft.getInstance().gameSettings.chatScale;
+
+        int i = (int) Math.ceil(height / 9.0) + 2;
+        int j = RENDER_LINES.size();
+        Minecraft.getInstance().ingameGUI.getChatGUI().func_238498_k_();
+        if (j > 0)
+        {
+            int k = MathHelper.ceil((double) scaledWidth / d0);
+            RenderSystem.pushMatrix();
+            RenderSystem.translatef(2.0F, 8.0F, 0.0F);
+            RenderSystem.scaled(d0, d0, 1.0D);
+            double d1 = mc.gameSettings.chatOpacity * (double) 0.9F + (double) 0.1F;
+            double d2 = mc.gameSettings.accessibilityTextBackgroundOpacity;
+            double d3 = 9.0D * (mc.gameSettings.chatLineSpacing + 1.0D);
+            double d4 = -8.0D * (mc.gameSettings.chatLineSpacing + 1.0D) + 4.0D * mc.gameSettings.chatLineSpacing;
+
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(0, 40 * ChatWindow.getGuiScale(), ChatWindow.getWidth(), ChatWindow.getHeight() - 40 * ChatWindow.getGuiScale());
+            for (int i1 = 0; i1 + scrollPos / d3 < RENDER_LINES.size() && i1 < i; ++i1)
+            {
+                IReorderingProcessor chatline = RENDER_LINES.get((int) (i1 + scrollPos / d3));
+                if (chatline != null)
+                {
+                    int l1 = (int) (255.0D * d1);
+                    int i2 = (int) (255.0D * d2);
+                    if (l1 > 3)
+                    {
+                        double d6 = (double) (-i1) * d3;
+                        matrixStack.push();
+                        matrixStack.translate(0.0D, scrollPos % d3, 10.0D);
+                        AbstractGui.fill(matrixStack, -2, (int) (d6 - d3), k + 4, (int) d6, i2 << 24);
+                        RenderSystem.enableBlend();
+                        matrixStack.translate(0.0D, 0.0D, 10.0D);
+                        mc.fontRenderer.func_238407_a_(matrixStack, chatline, 0.0F, (float) ((int) (d6 + d4)), 16777215 + (l1 << 24));
+                        RenderSystem.disableAlphaTest();
+                        RenderSystem.disableBlend();
+                        matrixStack.pop();
+                    }
+                }
+            }
+            glDisable(GL_SCISSOR_TEST);
+
+            if (!mc.ingameGUI.getChatGUI().field_238489_i_.isEmpty())
+            {
+                int k2 = (int) (128.0D * d1);
+                int i3 = (int) (255.0D * d2);
+                matrixStack.push();
+                matrixStack.translate(0.0D, 0.0D, 50.0D);
+                AbstractGui.fill(matrixStack, -2, 0, k + 4, 9, i3 << 24);
+                RenderSystem.enableBlend();
+                matrixStack.translate(0.0D, 0.0D, 50.0D);
+                mc.fontRenderer.func_243246_a(matrixStack, new TranslationTextComponent("chat.queue", mc.ingameGUI.getChatGUI().field_238489_i_.size()), 0.0F, 1.0F, 16777215 + (k2 << 24));
+                matrixStack.pop();
+                RenderSystem.disableAlphaTest();
+                RenderSystem.disableBlend();
+            }
+
+            RenderSystem.popMatrix();
+        }
+
         RenderSystem.popMatrix();
+        matrixStack.push();
+        matrixStack.translate(0, 0, 50);
         CHAT_SCREEN.render(matrixStack, mouseX, mouseY, 1.0F);
-
-//        Minecraft mc = Minecraft.getInstance();
-//
-//        AbstractGui.fill(matrixStack, 0, 0, scaledWidth, scaledHeight, 0xFFC6C6C6);
-//        double d0 = mc.gameSettings.chatScale;
-//        int k = MathHelper.ceil((double) scaledWidth / d0);
-//        RenderSystem.pushMatrix();
-//        RenderSystem.translatef(2.0F, scaledHeight, 0.0F);
-//        RenderSystem.scaled(d0, d0, 1.0D);
-//        double d1 = mc.gameSettings.chatOpacity * (double) 0.9F + (double) 0.1F;
-//        double d2 = mc.gameSettings.accessibilityTextBackgroundOpacity;
-//        double d3 = 9.0D * (mc.gameSettings.chatLineSpacing + 1.0D);
-//        double d4 = -8.0D * (mc.gameSettings.chatLineSpacing + 1.0D) + 4.0D * mc.gameSettings.chatLineSpacing;
-//
-//        for (int i1 = 0; i1 < RENDER_LINES.size(); i1++)
-//        {
-//            IReorderingProcessor chatline = RENDER_LINES.get(i1);
-//            if (chatline != null)
-//            {
-//                int l1 = (int) (255.0D * d1);
-//                int i2 = (int) (255.0D * d2);
-//                if (l1 > 3)
-//                {
-//                    double d6 = (double) (-i1) * d3;
-//                    matrixStack.push();
-//                    matrixStack.translate(0.0D, 0.0D, 50.0D);
-//                    AbstractGui.fill(matrixStack, -2, (int) (d6 - d3), k + 4, (int) d6, i2 << 24);
-//                    RenderSystem.enableBlend();
-//                    matrixStack.translate(0.0D, 0.0D, 50.0D);
-//                    mc.fontRenderer.func_238407_a_(matrixStack, chatline, 0.0F, (float) ((int) (d6 + d4)), 16777215 + (l1 << 24));
-//                    RenderSystem.disableAlphaTest();
-//                    RenderSystem.disableBlend();
-//                    matrixStack.pop();
-//                }
-//            }
-//        }
-//
-//        RenderSystem.popMatrix();
-//
-
+        matrixStack.push();
+        RenderSystem.disableDepthTest();
     }
 
     /**
-     * Syncs the render lines with the chat text.
+     * Fetches the hovered line of text at the specified position.
+     *
+     * @param mouseX       The x position of the mouse
+     * @param mouseY       The y position of the mouse
+     * @param partialTicks The percentage from last update and this update
+     * @return The style of text at the hovered position or <code>null</code> if the text has no style
      */
-    public static void updateText()
+    @Nullable
+    public static Style getHoveredComponent(double mouseX, double mouseY, float partialTicks)
     {
-        RENDER_LINES.clear();
-
-        Minecraft.getInstance().ingameGUI.getChatGUI().chatLines.stream().flatMap(line ->
+        Minecraft mc = Minecraft.getInstance();
+        float scrollPos = Math.max(0, ChatWindowRenderer.getScrollHandler().getInterpolatedScroll(partialTicks));
+        double d0 = mouseX - 2.0D;
+        double d1 = ChatWindow.getScaledHeight() - mouseY - 40.0D;
+        d0 = MathHelper.floor(d0 / ChatWindow.getGuiScale());
+        d1 = MathHelper.floor(d1 / (ChatWindow.getGuiScale() * (mc.gameSettings.chatLineSpacing + 1.0D)));
+        if (!(d0 < 0.0D) && !(d1 < 0.0D))
         {
-            List<IReorderingProcessor> processors = RenderComponentsUtil.func_238505_a_(line.getLineString(), ChatWindow.getScaledWidth() - 4 * ChatWindow.getGuiScale(), Minecraft.getInstance().fontRenderer);
-            Collections.reverse(processors);
-            return processors.stream();
-        }).forEach(RENDER_LINES::add);
-
-        while (RENDER_LINES.size() > 100)
-        {
-            RENDER_LINES.remove(RENDER_LINES.size() - 1);
+            int i = Math.min((int) Math.ceil((ChatWindow.getScaledHeight() - 48) / 9.0) + 2, RENDER_LINES.size());
+            if (d0 <= (double) MathHelper.floor((double) ChatWindow.getScaledWidth() / ChatWindow.getGuiScale()) && d1 < (double) (9 * i + i))
+            {
+                int j = (int) (d1 / 9.0D + (double) scrollPos);
+                if (j >= 0 && j < RENDER_LINES.size())
+                {
+                    return mc.fontRenderer.getCharacterManager().func_243239_a(RENDER_LINES.get(j), (int) d0);
+                }
+            }
         }
+        return null;
     }
 
     /**
@@ -221,5 +303,13 @@ public class ChatWindowRenderer
     public static Screen getListener()
     {
         return CHAT_SCREEN;
+    }
+
+    /**
+     * @return The scrolling manager
+     */
+    public static ScrollHandler getScrollHandler()
+    {
+        return SCROLL_HANDLER;
     }
 }

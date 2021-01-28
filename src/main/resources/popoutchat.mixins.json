@@ -6,7 +6,8 @@
   "refmap": "${modId}.refmap.json",
   "mixins": [],
   "client": [
-    "NewChatGuiMixin"
+    "NewChatGuiMixin",
+    "ScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

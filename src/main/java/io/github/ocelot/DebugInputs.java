@@ -18,6 +18,9 @@ import static org.lwjgl.opengl.GL11.GL_TEXTURE_COMPONENTS;
 import static org.lwjgl.opengl.GL11C.*;
 import static org.lwjgl.stb.STBImageWrite.stbi_write_png;
 
+/**
+ * @author Ocelot
+ */
 @Mod.EventBusSubscriber(modid = DetachableChat.MOD_ID)
 public class DebugInputs
 {

@@ -4,25 +4,38 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.ocelot.DetachableChat;
+import net.minecraft.client.GameSettings;
 import net.minecraft.client.MainWindow;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.NewChatGui;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.TextureUtil;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.client.resources.I18n;
+import net.minecraft.client.util.InputMappings;
+import net.minecraft.resources.ResourcePackType;
+import net.minecraft.resources.VanillaPack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.ForgeHooksClient;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
+import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -43,6 +56,7 @@ public final class ChatWindow
     private static int scaledWidth;
     private static int scaledHeight;
     private static int guiScale;
+    private static int lastGuiScaleSetting;
     private static boolean closing;
     private static boolean focused;
     private static double mouseX;
@@ -78,6 +92,73 @@ public final class ChatWindow
         ChatWindowRenderer.updateText();
     }
 
+    private static void setWindowIcon()
+    {
+        VanillaPack vanillaPack = Minecraft.getInstance().getPackFinder().getVanillaPack();
+        try (MemoryStack memorystack = MemoryStack.stackPush())
+        {
+            InputStream iconStream16X = vanillaPack.getResourceStream(ResourcePackType.CLIENT_RESOURCES, new ResourceLocation("icons/icon_16x16.png"));
+            InputStream iconStream32X = vanillaPack.getResourceStream(ResourcePackType.CLIENT_RESOURCES, new ResourceLocation("icons/icon_32x32.png"));
+
+            IntBuffer intbuffer = memorystack.mallocInt(1);
+            IntBuffer intbuffer1 = memorystack.mallocInt(1);
+            IntBuffer intbuffer2 = memorystack.mallocInt(1);
+            GLFWImage.Buffer buffer = GLFWImage.mallocStack(2, memorystack);
+            ByteBuffer bytebuffer = loadIcon(iconStream16X, intbuffer, intbuffer1, intbuffer2);
+            if (bytebuffer == null)
+            {
+                throw new IllegalStateException("Could not load icon: " + STBImage.stbi_failure_reason());
+            }
+
+            buffer.position(0);
+            buffer.width(intbuffer.get(0));
+            buffer.height(intbuffer1.get(0));
+            buffer.pixels(bytebuffer);
+            ByteBuffer bytebuffer1 = loadIcon(iconStream32X, intbuffer, intbuffer1, intbuffer2);
+            if (bytebuffer1 == null)
+            {
+                throw new IllegalStateException("Could not load icon: " + STBImage.stbi_failure_reason());
+            }
+
+            buffer.position(1);
+            buffer.width(intbuffer.get(0));
+            buffer.height(intbuffer1.get(0));
+            buffer.pixels(bytebuffer1);
+            buffer.position(0);
+            glfwSetWindowIcon(handle, buffer);
+            STBImage.stbi_image_free(bytebuffer);
+            STBImage.stbi_image_free(bytebuffer1);
+        }
+        catch (IOException e)
+        {
+            LOGGER.error("Failed to set icon", e);
+        }
+    }
+
+    @Nullable
+    private static ByteBuffer loadIcon(InputStream textureStream, IntBuffer x, IntBuffer y, IntBuffer channelInFile) throws IOException
+    {
+        RenderSystem.assertThread(RenderSystem::isInInitPhase);
+        ByteBuffer bytebuffer = null;
+
+        ByteBuffer bytebuffer1;
+        try
+        {
+            bytebuffer = TextureUtil.readToBuffer(textureStream);
+            bytebuffer.rewind();
+            bytebuffer1 = STBImage.stbi_load_from_memory(bytebuffer, x, y, channelInFile, 0);
+        }
+        finally
+        {
+            if (bytebuffer != null)
+            {
+                MemoryUtil.memFree(bytebuffer);
+            }
+        }
+
+        return bytebuffer1;
+    }
+
     /**
      * Opens the chat window.
      */
@@ -95,6 +176,8 @@ public final class ChatWindow
         }
 
         MainWindow mainWindow = Minecraft.getInstance().getMainWindow();
+        double windowWidth = NewChatGui.calculateChatboxWidth(1.0F) * mainWindow.getGuiScaleFactor();
+        double windowHeight = 3.0 * windowWidth / 4.0;
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_NATIVE_CONTEXT_API);
@@ -102,9 +185,11 @@ public final class ChatWindow
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
         glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-        handle = glfwCreateWindow(640, 480, "Test", NULL, mainWindow.getHandle());
+        handle = glfwCreateWindow((int) windowWidth, (int) windowHeight, I18n.format("title." + DetachableChat.MOD_ID + ".chat"), NULL, mainWindow.getHandle());
         if (handle == NULL)
             throw new RuntimeException("Failed to create Chat Window");
+
+        setWindowIcon();
 
         closing = false;
         focused = false;
@@ -117,10 +202,8 @@ public final class ChatWindow
             mouseY = y.get();
         }
 
-        glfwSetFramebufferSizeCallback(handle, (window, width, height) -> setWindowSize(width, height));
-        glfwSetWindowCloseCallback(handle, window -> closing = true);
-        glfwSetWindowFocusCallback(handle, (window, f) -> focused = f);
-        glfwSetKeyCallback(handle, (window, key, scancode, action, mods) ->
+        /* Keyboard Input */
+        InputMappings.setKeyCallbacks(handle, (window, key, scancode, action, mods) ->
         {
             switch (action)
             {
@@ -132,9 +215,7 @@ public final class ChatWindow
                     ChatWindowRenderer.getListener().keyReleased(key, scancode, mods);
                     break;
             }
-            Minecraft.getInstance().setGameFocused(true);
-        });
-        glfwSetCharModsCallback(handle, (window, codepoint, mods) ->
+        }, (window, codepoint, mods) ->
         {
             Screen iguieventlistener = ChatWindowRenderer.getListener();
             if (Character.charCount(codepoint) == 1)
@@ -162,34 +243,42 @@ public final class ChatWindow
                     }, "charTyped event handler", iguieventlistener.getClass().getCanonicalName());
                 }
             }
-            Minecraft.getInstance().setGameFocused(true);
         });
-        glfwSetCursorPosCallback(handle, (window, xpos, ypos) ->
+
+        /* Mouse Input */
+        InputMappings.setMouseCallbacks(handle, (window, xpos, ypos) ->
         {
             mouseX = xpos;
             mouseY = ypos;
             ChatWindowRenderer.getListener().mouseMoved(xpos, ypos);
-        });
-        glfwSetMouseButtonCallback(handle, (window, button, action, mods) ->
+        }, (window, button, action, mods) ->
         {
             switch (action)
             {
                 case GLFW_PRESS:
-                    ChatWindowRenderer.getListener().mouseClicked(mouseX, mouseY, button);
+                    ChatWindowRenderer.getListener().mouseClicked(mouseX / guiScale, mouseY / guiScale, button);
                     break;
                 case GLFW_RELEASE:
-                    ChatWindowRenderer.getListener().mouseReleased(mouseX, mouseY, button);
+                    ChatWindowRenderer.getListener().mouseReleased(mouseX / guiScale, mouseY / guiScale, button);
                     break;
             }
-            Minecraft.getInstance().setGameFocused(true);
+        }, (window, xoffset, yoffset) -> ChatWindowRenderer.getListener().mouseScrolled(mouseX / guiScale, mouseY / guiScale, yoffset), (window, count, names) ->
+        {
         });
 
+        /* Close and Focus callbacks */
+        glfwSetFramebufferSizeCallback(handle, (window, width, height) -> setWindowSize(width, height));
+        glfwSetWindowCloseCallback(handle, window -> closing = true);
+        glfwSetWindowFocusCallback(handle, (window, f) -> focused = f);
+
+        /* Setup default state for the chat OpenGL context */
         glfwMakeContextCurrent(handle);
         GL.createCapabilities();
         RenderSystem.setupDefaultState(0, 0, framebufferWidth, framebufferHeight);
         glfwMakeContextCurrent(mainWindow.getHandle());
 
-        setWindowSize(640, 480);
+        /* Update listeners with window size */
+        setWindowSize((int) windowWidth, (int) windowHeight);
         ChatWindowRenderer.attach();
     }
 
@@ -201,19 +290,22 @@ public final class ChatWindow
         if (handle == NULL)
             return;
 
+        ClientEvents.onChatWindowClose();
         ChatWindowRenderer.free();
         glfwDestroyWindow(handle);
         handle = NULL;
     }
 
+    /**
+     * Renders the chat into the chat window.
+     */
     @SuppressWarnings("deprecation")
-    @SubscribeEvent
-    public static void onEvent(TickEvent.RenderTickEvent event)
+    public static void render()
     {
-        if (handle == NULL || event.phase == TickEvent.Phase.START)
+        if (handle == NULL)
             return;
 
-        if (closing)
+        if (Minecraft.getInstance().player == null || closing)
         {
             destroy();
             return;
@@ -221,6 +313,15 @@ public final class ChatWindow
 
         Minecraft mc = Minecraft.getInstance();
         MatrixStack matrixStack = new MatrixStack();
+
+        if (mc.gameSettings.guiScale != lastGuiScaleSetting)
+        {
+            lastGuiScaleSetting = mc.gameSettings.guiScale;
+            guiScale = calcGuiScale(mc.gameSettings.guiScale, mc.gameSettings.forceUnicodeFont);
+            scaledWidth = framebufferWidth / guiScale;
+            scaledHeight = framebufferHeight / guiScale;
+            ChatWindowRenderer.getListener().init(Minecraft.getInstance(), scaledWidth, scaledHeight);
+        }
 
         ChatWindowRenderer.bind();
         GlStateManager.viewport(0, 0, framebufferWidth, framebufferHeight);
@@ -232,7 +333,7 @@ public final class ChatWindow
         RenderSystem.loadIdentity();
         RenderSystem.translatef(0.0F, 0.0F, -2000.0F);
         RenderHelper.setupGui3DDiffuseLighting();
-        ChatWindowRenderer.render(matrixStack, scaledWidth, scaledHeight, (int) (mouseX / guiScale), (int) (mouseY / guiScale), focused);
+        ChatWindowRenderer.render(matrixStack, scaledWidth, scaledHeight, (int) (mouseX / guiScale), (int) (mouseY / guiScale), Minecraft.getInstance().getRenderPartialTicks());
         mc.getFramebuffer().bindFramebuffer(true);
 
         glFinish();
@@ -254,10 +355,28 @@ public final class ChatWindow
         glfwMakeContextCurrent(Minecraft.getInstance().getMainWindow().getHandle());
     }
 
-    @SubscribeEvent
-    public static void onEvent(ClientPlayerNetworkEvent.LoggedOutEvent event)
+    /**
+     * @return The id of the chat window or <code>NULL</code> if there is no window open
+     */
+    public static long getHandle()
     {
-        destroy();
+        return handle;
+    }
+
+    /**
+     * @return The width of the screen
+     */
+    public static int getWidth()
+    {
+        return framebufferWidth;
+    }
+
+    /**
+     * @return The height of the screen
+     */
+    public static int getHeight()
+    {
+        return framebufferHeight;
     }
 
     /**
@@ -282,5 +401,21 @@ public final class ChatWindow
     public static int getGuiScale()
     {
         return guiScale;
+    }
+
+    /**
+     * @return Whether or not the chat window is the currently focused window
+     */
+    public static boolean hasFocus()
+    {
+        return focused;
+    }
+
+    /**
+     * @return Whether or not the chat window is opened
+     */
+    public static boolean isOpen()
+    {
+        return handle != NULL;
     }
 }
