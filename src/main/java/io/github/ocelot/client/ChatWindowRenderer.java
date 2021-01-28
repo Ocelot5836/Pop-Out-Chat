@@ -3,11 +3,12 @@ package io.github.ocelot.client;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.github.ocelot.DetachableChat;
+import io.github.ocelot.PopoutChat;
 import io.github.ocelot.client.util.ScrollHandler;
 import net.minecraft.client.GameSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.AbstractGui;
+import net.minecraft.client.gui.NewChatGui;
 import net.minecraft.client.gui.RenderComponentsUtil;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.shader.FramebufferConstants;
@@ -31,7 +32,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  *
  * @author Ocelot
  */
-@Mod.EventBusSubscriber(modid = DetachableChat.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = PopoutChat.MOD_ID, value = Dist.CLIENT)
 public class ChatWindowRenderer
 {
     private static final List<IReorderingProcessor> RENDER_LINES = new LinkedList<>();
@@ -195,13 +196,23 @@ public class ChatWindowRenderer
         RenderSystem.translatef(0, scaledHeight - 48, -10);
 
         Minecraft mc = Minecraft.getInstance();
+        NewChatGui gui = mc.ingameGUI.getChatGUI();
         int height = scaledHeight - 48;
         float scrollPos = Math.max(0, SCROLL_HANDLER.getInterpolatedScroll(partialTicks));
         double d0 = Minecraft.getInstance().gameSettings.chatScale;
 
+        if (!gui.field_238489_i_.isEmpty())
+        {
+            long now = System.currentTimeMillis();
+            if (now - gui.field_238490_l_ >= mc.gameSettings.chatDelay * 1000.0D)
+            {
+                gui.printChatMessage(gui.field_238489_i_.remove());
+                gui.field_238490_l_ = now;
+            }
+        }
+
         int i = (int) Math.ceil(height / 9.0) + 2;
         int j = RENDER_LINES.size();
-        Minecraft.getInstance().ingameGUI.getChatGUI().func_238498_k_();
         if (j > 0)
         {
             int k = MathHelper.ceil((double) scaledWidth / d0);
@@ -280,14 +291,14 @@ public class ChatWindowRenderer
         float scrollPos = Math.max(0, ChatWindowRenderer.getScrollHandler().getInterpolatedScroll(partialTicks));
         double d0 = mouseX - 2.0D;
         double d1 = ChatWindow.getScaledHeight() - mouseY - 40.0D;
-        d0 = MathHelper.floor(d0 / ChatWindow.getGuiScale());
-        d1 = MathHelper.floor(d1 / (ChatWindow.getGuiScale() * (mc.gameSettings.chatLineSpacing + 1.0D)));
+        d0 = MathHelper.floor(d0 / Minecraft.getInstance().gameSettings.chatScale);
+        d1 = MathHelper.floor(d1 / (Minecraft.getInstance().gameSettings.chatScale * (mc.gameSettings.chatLineSpacing + 1.0D)));
         if (!(d0 < 0.0D) && !(d1 < 0.0D))
         {
             int i = Math.min((int) Math.ceil((ChatWindow.getScaledHeight() - 48) / 9.0) + 2, RENDER_LINES.size());
-            if (d0 <= (double) MathHelper.floor((double) ChatWindow.getScaledWidth() / ChatWindow.getGuiScale()) && d1 < (double) (9 * i + i))
+            if (d0 <= (double) MathHelper.floor((double) ChatWindow.getScaledWidth() / Minecraft.getInstance().gameSettings.chatScale) && d1 < (double) (9 * i + i))
             {
-                int j = (int) (d1 / 9.0D + (double) scrollPos);
+                int j = (int) ((d1 + scrollPos) / 9.0D);
                 if (j >= 0 && j < RENDER_LINES.size())
                 {
                     return mc.fontRenderer.getCharacterManager().func_243239_a(RENDER_LINES.get(j), (int) d0);

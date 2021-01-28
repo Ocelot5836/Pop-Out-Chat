@@ -2,7 +2,7 @@ package io.github.ocelot.client.util;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.github.ocelot.DetachableChat;
+import io.github.ocelot.PopoutChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.util.ResourceLocation;
@@ -13,7 +13,7 @@ import net.minecraft.util.text.ITextComponent;
  */
 public class PopOutButton extends Button
 {
-    private static final ResourceLocation TEXTURE_LOCATION = new ResourceLocation(DetachableChat.MOD_ID, "textures/gui/pop_out.png");
+    private static final ResourceLocation TEXTURE_LOCATION = new ResourceLocation(PopoutChat.MOD_ID, "textures/gui/pop_out.png");
 
     public PopOutButton(int x, int y, ITextComponent title, IPressable pressedAction, ITooltip onTooltip)
     {
@@ -33,5 +33,8 @@ public class PopOutButton extends Button
         this.renderBg(matrixStack, minecraft, mouseX, mouseY);
         RenderSystem.color4f(1.0F, 1.0F, this.isHovered() ? 0.0F : 1.0F, this.alpha);
         blit(matrixStack, this.x + 2, this.y + 2, 16, 16, 0, 0, 1, 1, 1, 1);
+
+        if (this.isHovered())
+            this.renderToolTip(matrixStack, mouseX, mouseY);
     }
 }

@@ -2,20 +2,16 @@ package io.github.ocelot.client;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.ChatLine;
 import net.minecraft.client.gui.CommandSuggestionHelper;
 import net.minecraft.client.gui.NewChatGui;
 import net.minecraft.client.gui.chat.NarratorChatListener;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.util.IReorderingProcessor;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.IFormattableTextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TranslationTextComponent;
-
-import javax.annotation.Nullable;
 
 /**
  * <p>Custom implementation of {@link ChatScreen}.</p>
@@ -158,9 +154,16 @@ public class ChatBoxScreen extends Screen
         if (button == 0)
         {
             NewChatGui newchatgui = this.getMinecraft().ingameGUI.getChatGUI();
-            if (newchatgui.func_238491_a_(mouseX, mouseY))
+            if (!newchatgui.field_238489_i_.isEmpty())
             {
-                return true;
+                double d0 = mouseX - 2.0D;
+                double d1 = (double) this.getMinecraft().getMainWindow().getScaledHeight() - mouseY - 40.0D;
+                if (d0 <= (double) MathHelper.floor((double) ChatWindow.getScaledWidth() / this.getMinecraft().gameSettings.chatScale) && d1 < 0.0D && d1 > (double) MathHelper.floor(-9.0D * this.getMinecraft().gameSettings.chatScale))
+                {
+                    newchatgui.printChatMessage(newchatgui.field_238489_i_.remove());
+                    newchatgui.field_238490_l_ = System.currentTimeMillis();
+                    return true;
+                }
             }
 
             Style style = ChatWindowRenderer.getHoveredComponent(mouseX, mouseY, 1.0F);

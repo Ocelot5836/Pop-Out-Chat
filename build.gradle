@@ -36,10 +36,10 @@ minecraft {
         client {
             workingDirectory project.file('run/client')
             property 'forge.logging.console.level', 'debug'
-            arg "-mixin.config=detachablechat.mixins.json"
+            arg "-mixin.config=popoutchat.mixins.json"
 
             mods {
-                detachablechat {
+                popoutchat {
                     source sourceSets.main
                 }
             }
@@ -48,10 +48,10 @@ minecraft {
         server {
             workingDirectory project.file('run/server')
             property 'forge.logging.console.level', 'debug'
-            arg "-mixin.config=detachablechat.mixins.json"
+            arg "-mixin.config=popoutchat.mixins.json"
 
             mods {
-                detachablechat {
+                popoutchat {
                     source sourceSets.main
                 }
             }
@@ -63,7 +63,7 @@ minecraft {
             args '--mod', project.modId, '--all', '--output', file('src/generated/resources/')
 
             mods {
-                detachablechat {
+                popoutchat {
                     source sourceSets.main
                 }
             }
@@ -91,7 +91,7 @@ processResources {
     }
 }
 
-// detachablechat for how to get properties into the manifest for reading by the runtime..
+// popoutchat for how to get properties into the manifest for reading by the runtime..
 jar {
     manifest {
         attributes([

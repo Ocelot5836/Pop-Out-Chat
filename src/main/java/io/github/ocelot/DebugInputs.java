@@ -21,7 +21,7 @@ import static org.lwjgl.stb.STBImageWrite.stbi_write_png;
 /**
  * @author Ocelot
  */
-@Mod.EventBusSubscriber(modid = DetachableChat.MOD_ID)
+@Mod.EventBusSubscriber(modid = PopoutChat.MOD_ID)
 public class DebugInputs
 {
     @SubscribeEvent

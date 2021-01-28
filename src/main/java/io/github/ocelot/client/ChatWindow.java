@@ -3,8 +3,7 @@ package io.github.ocelot.client;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.github.ocelot.DetachableChat;
-import net.minecraft.client.GameSettings;
+import io.github.ocelot.PopoutChat;
 import net.minecraft.client.MainWindow;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.NewChatGui;
@@ -46,7 +45,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  *
  * @author Ocelot
  */
-@Mod.EventBusSubscriber(modid = DetachableChat.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = PopoutChat.MOD_ID, value = Dist.CLIENT)
 public final class ChatWindow
 {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -185,11 +184,20 @@ public final class ChatWindow
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
         glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
-        handle = glfwCreateWindow((int) windowWidth, (int) windowHeight, I18n.format("title." + DetachableChat.MOD_ID + ".chat"), NULL, mainWindow.getHandle());
+        handle = glfwCreateWindow((int) windowWidth, (int) windowHeight, I18n.format("title." + PopoutChat.MOD_ID + ".chat"), NULL, mainWindow.getHandle());
         if (handle == NULL)
             throw new RuntimeException("Failed to create Chat Window");
 
         setWindowIcon();
+
+        /* Set position to center of main window */
+        try (MemoryStack memoryStack = MemoryStack.stackPush())
+        {
+            IntBuffer x = memoryStack.callocInt(1);
+            IntBuffer y = memoryStack.callocInt(1);
+            glfwGetWindowPos(mainWindow.getHandle(), x, y);
+            glfwSetWindowPos(handle, (int) (x.get() + (mainWindow.getWidth() - windowWidth) / 2.0), (int) (y.get() + (mainWindow.getHeight() - windowHeight) / 2.0));
+        }
 
         closing = false;
         focused = false;

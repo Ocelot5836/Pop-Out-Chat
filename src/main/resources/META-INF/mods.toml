@@ -1,6 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "[34,)"
-license = "All Rights Reserved"
+license="GPL v3"
+issueTrackerURL="https://github.com/Ocelot5836/Pop-Out-Chat/issues"
 
 [[mods]]
 modId = "${modId}"
@@ -8,7 +9,7 @@ version = "${modVersion}"
 displayName = "${modName}"
 updateJSONURL = "https://raw.githubusercontent.com/Ocelot5836/storage/master/mods/popoutchat/update.json"
 authors = "Ocelot"
-description = "Adds the ability to pop Minecraft chat out with the click of a button. The chat becomes a separate window with complete support for vanilla chat features."
+description = "Adds the ability to put the Minecraft chat into its own window with complete Vanilla chat support."
 
 [[dependencies.${modId}]]
 modId = "forge"

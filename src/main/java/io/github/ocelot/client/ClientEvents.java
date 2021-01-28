@@ -1,6 +1,6 @@
 package io.github.ocelot.client;
 
-import io.github.ocelot.DetachableChat;
+import io.github.ocelot.PopoutChat;
 import io.github.ocelot.client.util.PopOutButton;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
@@ -15,7 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * @author Ocelot
  */
-@Mod.EventBusSubscriber(modid = DetachableChat.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = PopoutChat.MOD_ID, value = Dist.CLIENT)
 public class ClientEvents
 {
     private static Button popOut;
@@ -44,14 +44,14 @@ public class ClientEvents
         Screen screen = event.getGui();
         if (screen instanceof ChatScreen)
         {
-            event.addWidget(popOut = new PopOutButton(screen.width - 22, 2, new TranslationTextComponent("button." + DetachableChat.MOD_ID + ".toggle"), button ->
+            event.addWidget(popOut = new PopOutButton(screen.width - 22, 2, new TranslationTextComponent("button." + PopoutChat.MOD_ID + ".pop_out"), button ->
             {
                 if (!ChatWindow.isOpen())
                 {
                     button.visible = false;
                     ChatWindow.create();
                 }
-            }, (button, matrixStack, mouseX, mouseY) -> screen.renderTooltip(matrixStack, new TranslationTextComponent("button." + DetachableChat.MOD_ID + "." + (ChatWindow.isOpen() ? "close" : "open")), mouseX, mouseY)));
+            }, (button, matrixStack, mouseX, mouseY) -> screen.renderTooltip(matrixStack, button.getMessage(), mouseX, mouseY)));
             popOut.visible = !ChatWindow.isOpen();
         }
         else
