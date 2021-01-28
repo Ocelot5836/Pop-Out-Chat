@@ -177,7 +177,6 @@ public final class ScrollHandler
     public ScrollHandler setHeight(int height)
     {
         this.height = height;
-//        this.setScroll(this.scroll);
         return this;
     }
 
@@ -189,7 +188,6 @@ public final class ScrollHandler
     public ScrollHandler setVisibleHeight(int visibleHeight)
     {
         this.visibleHeight = visibleHeight;
-//        this.setScroll(this.scroll);
         return this;
     }
 
