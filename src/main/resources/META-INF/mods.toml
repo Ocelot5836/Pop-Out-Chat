@@ -8,6 +8,7 @@ modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 updateJSONURL = "https://raw.githubusercontent.com/Ocelot5836/storage/master/mods/popoutchat/update.json"
+displayURL = "https://www.curseforge.com/minecraft/mc-mods/pop-out-chat"
 authors = "Ocelot"
 description = "Adds the ability to put the Minecraft chat into its own window with complete Vanilla chat support."
 
