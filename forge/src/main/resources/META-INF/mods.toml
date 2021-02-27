@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[34,)"
+license="GPL v3"
+issueTrackerURL="https://github.com/Ocelot5836/Pop-Out-Chat/issues"
+
+[[mods]]
+modId = "popoutchat"
+version = "${version}"
+displayName = "Popout Chat"
+updateJSONURL = "https://raw.githubusercontent.com/Ocelot5836/storage/master/mods/popoutchat/update.json"
+displayURL = "https://www.curseforge.com/minecraft/mc-mods/pop-out-chat"
+authors = "Ocelot"
+description = "Adds the ability to put the Minecraft chat into its own window with complete Vanilla chat support."
+
+[[dependencies.popoutchat]]
+modId = "forge"
+mandatory = true
+versionRange = "[34,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.popoutchat]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.16.3,)"
+ordering = "NONE"
+side = "BOTH"

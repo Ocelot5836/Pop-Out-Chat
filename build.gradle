@@ -1,108 +1,58 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
+plugins {
+    id "architectury-plugin" version "3.0.89"
+    id "forgified-fabric-loom" version "0.6.70" apply false
+}
 
-buildscript {
-    repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
-        maven { url = 'https://repo.spongepowered.org/maven' }
-        jcenter()
-        mavenCentral()
+architectury {
+    minecraft = rootProject.minecraft_version
+}
+
+subprojects {
+    apply plugin: "forgified-fabric-loom"
+
+    loom {
+        silentMojangMappingsLicense()
     }
+
     dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
-        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
-    }
-}
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'org.spongepowered.mixin'
-apply plugin: 'eclipse'
-
-version = "${project.minecraft}-${project.modVersion}"
-group = 'io.github.ocelot'
-archivesBaseName = project.modId
-
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
-
-mixin {
-    add sourceSets.main, "${project.modId}.refmap.json"
-}
-
-minecraft {
-    mappings channel: project.mappingsChannel, version: project.mappings
-
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-
-    runs {
-        client {
-            workingDirectory project.file('run/client')
-            property 'forge.logging.console.level', 'debug'
-            arg "-mixin.config=popoutchat.mixins.json"
-
-            mods {
-                popoutchat {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        server {
-            workingDirectory project.file('run/server')
-            property 'forge.logging.console.level', 'debug'
-            arg "-mixin.config=popoutchat.mixins.json"
-
-            mods {
-                popoutchat {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        data {
-            workingDirectory project.file('run/data')
-            property 'forge.logging.console.level', 'debug'
-            args '--mod', project.modId, '--all', '--output', file('src/generated/resources/')
-
-            mods {
-                popoutchat {
-                    source sourceSets.main
-                }
-            }
-        }
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        // The following line declares the mojmap mappings, you may use other mappings as well
+        mappings loom.officialMojangMappings()
+        // The following line declares the yarn mappings you may select this one as well.
+        // mappings "net.fabricmc:yarn:1.16.5+build.4"
     }
 }
 
-dependencies {
-    minecraft "net.minecraftforge:forge:${project.minecraft}-${project.forge}"
-}
+allprojects {
+    apply plugin: "java"
+    apply plugin: "architectury-plugin"
+    apply plugin: "maven-publish"
 
-processResources {
-    inputs.property("modName", project.modName)
-    inputs.property("modVersion", project.modVersion)
-    inputs.property("modId", project.modId)
-    filesMatching(["META-INF/mods.toml", "pack.mcmeta", (String) "${project.modId}.mixins.json"]) {
-        expand 'modVersion': project.modVersion, 'modId': project.modId, 'modName': project.modName
+    archivesBaseName = rootProject.archives_base_name
+    version = rootProject.mod_version
+    group = rootProject.maven_group
+
+    repositories {
+        // Add repositories to retrieve artifacts from in here.
+        // You should only use this when depending on other mods because
+        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+        // for more information about repositories.
     }
 
-    // Minify json resources
-    doLast {
-        fileTree(dir: outputs.files.asPath, include: "**/*.json").each {
-            File file -> file.text = JsonOutput.toJson(new JsonSlurper().parse(file))
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+
+        // The Minecraft launcher currently installs Java 8 for users, so your mod probably wants to target Java 8 too
+        // JDK 9 introduced a new way of specifying this that will make sure no newer classes or methods are used.
+        // We'll use that if it's available, but otherwise we'll use the older option.
+        def targetVersion = 8
+        if (JavaVersion.current().isJava9Compatible()) {
+            options.release = targetVersion
         }
     }
-}
 
-// popoutchat for how to get properties into the manifest for reading by the runtime..
-jar {
-    manifest {
-        attributes([
-                "Specification-Title"     : project.modName,
-                "Specification-Vendor"    : "Ocelot",
-                "Specification-Version"   : "1",
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : "${version}",
-                "Implementation-Vendor"   : "Ocelot",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "MixinConfigs"            : "${project.modId}.mixins.json"
-        ])
+    java {
+        withSourcesJar()
     }
 }

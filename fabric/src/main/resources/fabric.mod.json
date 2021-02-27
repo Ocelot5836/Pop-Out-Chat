@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "popoutchat",
+  "version": "${version}",
+  "name": "Popout Chat",
+  "description": "Adds the ability to put the Minecraft chat into its own window with complete Vanilla chat support.",
+  "authors": [
+    "Ocelot"
+  ],
+  "contact": {
+    "homepage": "https://www.curseforge.com/minecraft/mc-mods/pop-out-chat",
+    "sources": "https://github.com/Ocelot5836/Pop-Out-Chat",
+    "issues": "https://github.com/Ocelot5836/Pop-Out-Chat/issues"
+  },
+  "license": "GPL v3",
+  "mixins": [
+    "popoutchat.mixins.json"
+  ],
+  "environment": "client",
+  "depends": {
+    "fabricloader": ">=0.7.4",
+    "minecraft": ">=1.16.3"
+  }
+}
