@@ -16,6 +16,11 @@
   "mixins": [
     "popoutchat.mixins.json"
   ],
+  "entrypoints": {
+    "client": [
+      "io.github.ocelot.popoutchat.fabric.PopoutChatFabric"
+    ]
+  },
   "environment": "client",
   "depends": {
     "fabricloader": ">=0.7.4",

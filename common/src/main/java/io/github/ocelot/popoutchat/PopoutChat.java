@@ -1,6 +1,7 @@
 package io.github.ocelot.popoutchat;
 
 import io.github.ocelot.popoutchat.client.ChatWindow;
+import io.github.ocelot.popoutchat.client.Config;
 import io.github.ocelot.popoutchat.client.util.PopOutButton;
 import io.github.ocelot.popoutchat.mixin.ScreenAccessor;
 import me.shedaniel.architectury.annotations.ExpectPlatform;
@@ -55,6 +56,13 @@ public class PopoutChat
     @SuppressWarnings("unused")
     @ExpectPlatform
     public static void onGuiCharTypedPost(Screen screen, char codepoint, int mods)
+    {
+        throw new AssertionError();
+    }
+
+    @SuppressWarnings("unused")
+    @ExpectPlatform
+    public static Config getConfig()
     {
         throw new AssertionError();
     }
